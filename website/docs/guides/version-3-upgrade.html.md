@@ -568,6 +568,10 @@ Previously the `subject_alternative_names` argument was stored in the Terraform 
 
 Previously when the `certificate_body`, `certificate_chain`, and `private_key` arguments were stored in state, they were stored as a hash of the actual value. This prevented Terraform from properly updating the resource when necessary and the hashing has been removed. The Terraform AWS Provider will show an update to these arguments on the first apply after upgrading to version 3.0.0, which is fixing the Terraform state to remove the hash. Since the `private_key` attribute is marked as sensitive, the values in the update will not be visible in the Terraform output. If the non-hashed values have not changed, then no update is occurring other than the Terraform state update. If these arguments are the only updates and they all match the hash removal, the apply will occur without submitting API calls.
 
+### Removal of trailing period in domain_validation_options.resource_record_name attribute
+
+Previously the resource returned the name of the DNS Record directly from the API, which included a `.` suffix. This proves difficult when many other AWS resources do not accept this trailing period (e.g. Route53 Record's `name` argument). This period is now automatically removed. For example, when the attribute would previously return a DNS Record Name such as `_a79865eb4cd1a6ab990a45779b4e0b96.yourdomain.com.`, the attribute now will be returned as `_a79865eb4cd1a6ab990a45779b4e0b96.yourdomain.com`.
+
 ## Resource: aws_api_gateway_method_settings
 
 ### throttling_burst_limit and throttling_rate_limit Arguments Now Default to -1

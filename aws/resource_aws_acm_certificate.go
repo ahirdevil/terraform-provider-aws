@@ -165,6 +165,9 @@ func resourceAwsAcmCertificate() *schema.Resource {
 			// Attempt to calculate the domain validation options based on domains present in domain_name and subject_alternative_names
 			if diff.Get("validation_method").(string) == "DNS" && (diff.HasChange("domain_name") || diff.HasChange("subject_alternative_names")) {
 				domainValidationOptionsList := []interface{}{map[string]interface{}{
+					// AWS Provider 3.0 -- plan-time validation prevents "domain_name"
+					// argument to accept a string with trailing period; thus, trim of trailing period
+					// no longer required here
 					"domain_name": diff.Get("domain_name").(string),
 				}}
 
@@ -177,7 +180,10 @@ func resourceAwsAcmCertificate() *schema.Resource {
 						}
 
 						m := map[string]interface{}{
-							"domain_name": strings.TrimSuffix(san, "."),
+							// AWS Provider 3.0 -- plan-time validation prevents "subject_alternative_names"
+							// argument to accept strings with trailing period; thus, trim of trailing period
+							// no longer required here
+							"domain_name": san,
 						}
 
 						domainValidationOptionsList = append(domainValidationOptionsList, m)
@@ -244,7 +250,7 @@ func resourceAwsAcmCertificateCreateRequested(d *schema.ResourceData, meta inter
 	if sans, ok := d.GetOk("subject_alternative_names"); ok {
 		subjectAlternativeNames := make([]*string, len(sans.(*schema.Set).List()))
 		for i, sanRaw := range sans.(*schema.Set).List() {
-			subjectAlternativeNames[i] = aws.String(strings.TrimSuffix(sanRaw.(string), "."))
+			subjectAlternativeNames[i] = aws.String(sanRaw.(string))
 		}
 		params.SubjectAlternativeNames = subjectAlternativeNames
 	}
@@ -390,8 +396,11 @@ func convertValidationOptions(certificate *acm.CertificateDetail) ([]map[string]
 		for _, o := range certificate.DomainValidationOptions {
 			if o.ResourceRecord != nil {
 				validationOption := map[string]interface{}{
-					"domain_name":           aws.StringValue(o.DomainName),
-					"resource_record_name":  aws.StringValue(o.ResourceRecord.Name),
+					"domain_name": aws.StringValue(o.DomainName),
+					// To be consistent with other AWS resources (e.g. Route53 Record) that do not accept a trailing period,
+					// as well conform to the "domain_name" argument validation, we remove the suffix from
+					// the DNS Record's Name returned from the API
+					"resource_record_name":  trimTrailingPeriod(aws.StringValue(o.ResourceRecord.Name)),
 					"resource_record_type":  aws.StringValue(o.ResourceRecord.Type),
 					"resource_record_value": aws.StringValue(o.ResourceRecord.Value),
 				}

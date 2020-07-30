@@ -1935,7 +1935,7 @@ resource "aws_route53_zone" "main" {
 }
 
 resource "aws_route53_record" "sample" {
-	zone_id = "${aws_route53_zone.main.zone_id}"
+  zone_id = "${aws_route53_zone.main.zone_id}"
   name = "sample"
   type = "CNAME"
   ttl = "30"
